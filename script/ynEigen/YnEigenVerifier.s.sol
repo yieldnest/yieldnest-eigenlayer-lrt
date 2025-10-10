@@ -16,11 +16,14 @@ import {console} from "lib/forge-std/src/console.sol";
 import {IAssetRegistry} from "src/interfaces/IAssetRegistry.sol";
 
 interface IynEigen {
+
     function assetRegistry() external view returns (address);
     function yieldNestStrategyManager() external view returns (address);
+
 }
 
 contract YnEigenVerifier is BaseYnEigenScript {
+
     Deployment private deployment;
 
     using Strings for uint256;
@@ -76,7 +79,7 @@ contract YnEigenVerifier is BaseYnEigenScript {
         );
 
         // Verify delay
-        uint256 expectedDelay = block.chainid == 17000 ? 15 minutes : 5 minutes;
+        uint256 expectedDelay = block.chainid == 17_000 ? 15 minutes : 5 minutes;
         require(deployment.upgradeTimelock.getMinDelay() == expectedDelay, "upgradeTimelock: DELAY INVALID");
         console.log("\u2705 upgradeTimelock: DELAY - ", deployment.upgradeTimelock.getMinDelay());
     }
@@ -86,29 +89,40 @@ contract YnEigenVerifier is BaseYnEigenScript {
         string memory contractName,
         ProxyAddresses memory proxyAddresses
     ) internal view {
-
         address expectedProxyAdminOwner;
 
         // TODO: consider changing owner here for consistency
-        if (keccak256(abi.encodePacked(contractName)) == keccak256(abi.encodePacked("ynEigenViewer")) && block.chainid == 1) {
-            expectedProxyAdminOwner = actors.admin.PROXY_ADMIN_OWNER;
-        } else {
-            expectedProxyAdminOwner = address(deployment.upgradeTimelock);
-        }
+        if (
+            keccak256(abi.encodePacked(contractName)) == keccak256(abi.encodePacked("ynEigenViewer"))
+                && block.chainid == 1
+        ) expectedProxyAdminOwner = actors.admin.PROXY_ADMIN_OWNER;
+        else expectedProxyAdminOwner = address(deployment.upgradeTimelock);
 
         // Verify PROXY_ADMIN_OWNER
         address proxyAdminAddress = Utils.getTransparentUpgradeableProxyAdminAddress(contractAddress);
         address proxyAdminOwner = ProxyAdmin(proxyAdminAddress).owner();
         require(
             proxyAdminOwner == expectedProxyAdminOwner,
-            string.concat(contractName, ": PROXY_ADMIN_OWNER mismatch, expected: ", vm.toString(expectedProxyAdminOwner), ", got: ", vm.toString(proxyAdminOwner))
+            string.concat(
+                contractName,
+                ": PROXY_ADMIN_OWNER mismatch, expected: ",
+                vm.toString(expectedProxyAdminOwner),
+                ", got: ",
+                vm.toString(proxyAdminOwner)
+            )
         );
         console.log(string.concat("\u2705 ", contractName, ": PROXY_ADMIN_OWNER - ", vm.toString(proxyAdminOwner)));
 
         // Verify ProxyAdmin address
         require(
             proxyAdminAddress == address(proxyAddresses.proxyAdmin),
-            string.concat(contractName, ": ProxyAdmin address mismatch, expected: ", vm.toString(address(proxyAddresses.proxyAdmin)), ", got: ", vm.toString(proxyAdminAddress))
+            string.concat(
+                contractName,
+                ": ProxyAdmin address mismatch, expected: ",
+                vm.toString(address(proxyAddresses.proxyAdmin)),
+                ", got: ",
+                vm.toString(proxyAdminAddress)
+            )
         );
         console.log(string.concat("\u2705 ", contractName, ": ProxyAdmin address - ", vm.toString(proxyAdminAddress)));
 
@@ -116,28 +130,26 @@ contract YnEigenVerifier is BaseYnEigenScript {
         address implementationAddress = Utils.getTransparentUpgradeableProxyImplementationAddress(contractAddress);
         require(
             implementationAddress == proxyAddresses.implementation,
-            string.concat(contractName, ": Implementation address mismatch, expected: ", vm.toString(proxyAddresses.implementation), ", got: ", vm.toString(implementationAddress))
+            string.concat(
+                contractName,
+                ": Implementation address mismatch, expected: ",
+                vm.toString(proxyAddresses.implementation),
+                ", got: ",
+                vm.toString(implementationAddress)
+            )
         );
-        console.log(string.concat("\u2705 ", contractName, ": Implementation address - ", vm.toString(implementationAddress)));
+        console.log(
+            string.concat("\u2705 ", contractName, ": Implementation address - ", vm.toString(implementationAddress))
+        );
     }
 
     function verifyProxies() internal view {
-        verifyProxyContract(
-            address(deployment.ynEigen),
-            "ynEigen",
-            deployment.proxies.ynEigen
-        );
+        verifyProxyContract(address(deployment.ynEigen), "ynEigen", deployment.proxies.ynEigen);
+
+        verifyProxyContract(address(deployment.assetRegistry), "assetRegistry", deployment.proxies.assetRegistry);
 
         verifyProxyContract(
-            address(deployment.assetRegistry),
-            "assetRegistry",
-            deployment.proxies.assetRegistry
-        );
-
-        verifyProxyContract(
-            address(deployment.eigenStrategyManager),
-            "eigenStrategyManager",
-            deployment.proxies.eigenStrategyManager
+            address(deployment.eigenStrategyManager), "eigenStrategyManager", deployment.proxies.eigenStrategyManager
         );
 
         verifyProxyContract(
@@ -152,16 +164,10 @@ contract YnEigenVerifier is BaseYnEigenScript {
             deployment.proxies.ynEigenDepositAdapter
         );
 
-        verifyProxyContract(
-            address(deployment.viewer),
-            "ynEigenViewer",
-            deployment.proxies.ynEigenViewer
-        );
+        verifyProxyContract(address(deployment.viewer), "ynEigenViewer", deployment.proxies.ynEigenViewer);
 
         verifyProxyContract(
-            address(deployment.redemptionAssetsVault),
-            "redemptionAssetsVault",
-            deployment.proxies.redemptionAssetsVault
+            address(deployment.redemptionAssetsVault), "redemptionAssetsVault", deployment.proxies.redemptionAssetsVault
         );
 
         verifyProxyContract(
@@ -170,11 +176,7 @@ contract YnEigenVerifier is BaseYnEigenScript {
             deployment.proxies.withdrawalQueueManager
         );
 
-        verifyProxyContract(
-            address(deployment.wrapper),
-            "wrapper",
-            deployment.proxies.wrapper
-        );
+        verifyProxyContract(address(deployment.wrapper), "wrapper", deployment.proxies.wrapper);
     }
 
     function verifyProxyAdminOwners() internal view {
@@ -519,7 +521,6 @@ contract YnEigenVerifier is BaseYnEigenScript {
         );
         console.log("\u2705 withdrawalQueueManager: DEFAULT_ADMIN_ROLE - ", vm.toString(address(actors.admin.ADMIN)));
 
-
         // WITHDRAWAL_QUEUE_ADMIN_ROLE
         require(
             deployment.withdrawalQueueManager.hasRole(
@@ -527,25 +528,35 @@ contract YnEigenVerifier is BaseYnEigenScript {
             ),
             "withdrawalQueueManager: WITHDRAWAL_QUEUE_ADMIN_ROLE INVALID"
         );
-        console.log("\u2705 withdrawalQueueManager: WITHDRAWAL_QUEUE_ADMIN_ROLE - ", vm.toString(address(actors.admin.ADMIN)));
+        console.log(
+            "\u2705 withdrawalQueueManager: WITHDRAWAL_QUEUE_ADMIN_ROLE - ", vm.toString(address(actors.admin.ADMIN))
+        );
 
         // REDEMPTION_ASSET_WITHDRAWER_ROLE
         require(
             deployment.withdrawalQueueManager.hasRole(
-                deployment.withdrawalQueueManager.REDEMPTION_ASSET_WITHDRAWER_ROLE(), address(actors.ops.REDEMPTION_ASSET_WITHDRAWER)
+                deployment.withdrawalQueueManager.REDEMPTION_ASSET_WITHDRAWER_ROLE(),
+                address(actors.ops.REDEMPTION_ASSET_WITHDRAWER)
             ),
             "withdrawalQueueManager: REDEMPTION_ASSET_WITHDRAWER_ROLE INVALID"
         );
-        console.log("\u2705 withdrawalQueueManager: REDEMPTION_ASSET_WITHDRAWER_ROLE - ", vm.toString(address(actors.ops.REDEMPTION_ASSET_WITHDRAWER)));
+        console.log(
+            "\u2705 withdrawalQueueManager: REDEMPTION_ASSET_WITHDRAWER_ROLE - ",
+            vm.toString(address(actors.ops.REDEMPTION_ASSET_WITHDRAWER))
+        );
 
         // REQUEST_FINALIZER_ROLE
         require(
             deployment.withdrawalQueueManager.hasRole(
-                deployment.withdrawalQueueManager.REQUEST_FINALIZER_ROLE(), address(actors.ops.YNEIGEN_REQUEST_FINALIZER)
+                deployment.withdrawalQueueManager.REQUEST_FINALIZER_ROLE(),
+                address(actors.ops.YNEIGEN_REQUEST_FINALIZER)
             ),
             "withdrawalQueueManager: REQUEST_FINALIZER_ROLE INVALID"
         );
-        console.log("\u2705 withdrawalQueueManager: REQUEST_FINALIZER_ROLE - ", vm.toString(address(actors.ops.YNEIGEN_REQUEST_FINALIZER)));
+        console.log(
+            "\u2705 withdrawalQueueManager: REQUEST_FINALIZER_ROLE - ",
+            vm.toString(address(actors.ops.YNEIGEN_REQUEST_FINALIZER))
+        );
     }
 
     function verifySystemParameters() internal view {
@@ -627,11 +638,10 @@ contract YnEigenVerifier is BaseYnEigenScript {
         );
 
         // EXPECTING 10 BPS
-        require(
-            deployment.withdrawalQueueManager.withdrawalFee() == 1000,
-            "WithdrawalQueueManager: withdrawalFee INVALID"
+        require(deployment.withdrawalQueueManager.withdrawalFee() == 0, "WithdrawalQueueManager: withdrawalFee INVALID");
+        console.log(
+            "\u2705 WithdrawalQueueManager: withdrawalFee - Value:", deployment.withdrawalQueueManager.withdrawalFee()
         );
-        console.log("\u2705 WithdrawalQueueManager: withdrawalFee - Value:", deployment.withdrawalQueueManager.withdrawalFee());
 
         console.log("\u2705 All system parameters verified successfully");
     }
@@ -691,7 +701,8 @@ contract YnEigenVerifier is BaseYnEigenScript {
         );
 
         require(
-            address(deployment.tokenStakingNodesManager.rewardsCoordinator()) == chainAddresses.eigenlayer.REWARDS_COORDINATOR_ADDRESS,
+            address(deployment.tokenStakingNodesManager.rewardsCoordinator())
+                == chainAddresses.eigenlayer.REWARDS_COORDINATOR_ADDRESS,
             "tokenStakingNodesManager: rewardsCoordinator dependency mismatch"
         );
         console.log("\u2705 tokenStakingNodesManager: rewardsCoordinator dependency verified successfully");
@@ -768,13 +779,20 @@ contract YnEigenVerifier is BaseYnEigenScript {
             address(deployment.withdrawalQueueManager.redeemableAsset()) == address(deployment.ynEigen),
             "withdrawalQueueManager: ynEigen INVALID"
         );
-        console.log("\u2705 withdrawalQueueManager: ynEigen - Value:", address(deployment.withdrawalQueueManager.redeemableAsset()));
+        console.log(
+            "\u2705 withdrawalQueueManager: ynEigen - Value:",
+            address(deployment.withdrawalQueueManager.redeemableAsset())
+        );
 
         require(
-            address(deployment.withdrawalQueueManager.redemptionAssetsVault()) == address(deployment.redemptionAssetsVault),
+            address(deployment.withdrawalQueueManager.redemptionAssetsVault())
+                == address(deployment.redemptionAssetsVault),
             "withdrawalQueueManager: redemptionAssetsVault INVALID"
         );
-        console.log("\u2705 withdrawalQueueManager: redemptionAssetsVault - Value:", address(deployment.withdrawalQueueManager.redemptionAssetsVault()));
+        console.log(
+            "\u2705 withdrawalQueueManager: redemptionAssetsVault - Value:",
+            address(deployment.withdrawalQueueManager.redemptionAssetsVault())
+        );
     }
 
     function verifyRedemptionAssetsVaultDependencies() internal view {
@@ -782,59 +800,121 @@ contract YnEigenVerifier is BaseYnEigenScript {
             address(deployment.redemptionAssetsVault.ynEigen()) == address(deployment.ynEigen),
             "redemptionAssetsVault: ynEigen INVALID"
         );
-        console.log("\u2705 redemptionAssetsVault: ynEigen - Value:", address(deployment.redemptionAssetsVault.ynEigen()));
+        console.log(
+            "\u2705 redemptionAssetsVault: ynEigen - Value:", address(deployment.redemptionAssetsVault.ynEigen())
+        );
 
         require(
             address(deployment.redemptionAssetsVault.assetRegistry()) == address(deployment.assetRegistry),
             "redemptionAssetsVault: assetRegistry INVALID"
         );
-        console.log("\u2705 redemptionAssetsVault: assetRegistry - Value:", address(deployment.redemptionAssetsVault.assetRegistry()));
+        console.log(
+            "\u2705 redemptionAssetsVault: assetRegistry - Value:",
+            address(deployment.redemptionAssetsVault.assetRegistry())
+        );
 
         require(
             address(deployment.redemptionAssetsVault.redeemer()) == address(deployment.withdrawalQueueManager),
             "redemptionAssetsVault: redeemer INVALID"
         );
-        console.log("\u2705 redemptionAssetsVault: redeemer - Value:", address(deployment.redemptionAssetsVault.redeemer()));
+        console.log(
+            "\u2705 redemptionAssetsVault: redeemer - Value:", address(deployment.redemptionAssetsVault.redeemer())
+        );
     }
 
     function ynEigenSanityCheck() internal {
-
         // Check that totalSupply is less than totalAssets
         uint256 totalSupply = deployment.ynEigen.totalSupply();
         uint256 totalAssets = deployment.ynEigen.totalAssets();
         console.log("totalSupply: ", totalSupply);
         console.log("totalAssets: ", totalAssets);
-        if (totalSupply <= totalAssets) {
-            console.log("\u2705 totalSupply is less than or equal to totalAssets");
-        } else {
-            console.log("\u274C\u274C\u274C RATE WARNING: totalSupply exceeds totalAssets \u274C\u274C\u274C");            
-        }
+        if (totalSupply <= totalAssets) console.log("\u2705 totalSupply is less than or equal to totalAssets");
+        else console.log("\u274C\u274C\u274C RATE WARNING: totalSupply exceeds totalAssets \u274C\u274C\u274C");
 
         // Print totalSupply and totalAssets
-        console.log(string.concat("Total Supply: ", vm.toString(totalSupply), " ynEigen (", vm.toString(totalSupply / 1e18), " units)"));
-        console.log(string.concat("Total Assets: ", vm.toString(totalAssets), " wei (", vm.toString(totalAssets / 1e18), " Unit of Account)"));
+        console.log(
+            string.concat(
+                "Total Supply: ", vm.toString(totalSupply), " ynEigen (", vm.toString(totalSupply / 1e18), " units)"
+            )
+        );
+        console.log(
+            string.concat(
+                "Total Assets: ",
+                vm.toString(totalAssets),
+                " wei (",
+                vm.toString(totalAssets / 1e18),
+                " Unit of Account)"
+            )
+        );
 
         uint256 previewRedeemResult = deployment.ynEigen.previewRedeem(1 ether);
-        console.log(string.concat("previewRedeem of 1 ynEigen: ", vm.toString(previewRedeemResult), " wei (", vm.toString(previewRedeemResult / 1e18), " Unit of Account)"));
+        console.log(
+            string.concat(
+                "previewRedeem of 1 ynEigen: ",
+                vm.toString(previewRedeemResult),
+                " wei (",
+                vm.toString(previewRedeemResult / 1e18),
+                " Unit of Account)"
+            )
+        );
 
         ITokenStakingNode[] memory tokenStakingNodes = deployment.tokenStakingNodesManager.getAllNodes();
         IERC20[] memory assets = deployment.assetRegistry.getAssets();
         uint256[] memory assetBalances = deployment.assetRegistry.getAllAssetBalances();
 
         for (uint256 i = 0; i < tokenStakingNodes.length; i++) {
-            console.log("Printing state for node ", vm.toString(i));
+            console.log("================================================");
+            console.log(
+                "Printing state for node ", vm.toString(i), " at address ", vm.toString(address(tokenStakingNodes[i]))
+            );
+            console.log("Delegated to: ", vm.toString(tokenStakingNodes[i].delegatedTo()));
+            console.log("************************************************");
             for (uint256 j = 0; j < assets.length; j++) {
                 IStrategy strategy = deployment.eigenStrategyManager.strategies(assets[j]);
-                (uint256 totalQueuedShares, uint256 withdrawnShares) = tokenStakingNodes[i].getQueuedSharesAndWithdrawn(strategy, assets[j]);
-                console.log(string.concat("Pre ELIP002 queued shares for node ", vm.toString(i), " and asset ", ERC20(address(assets[j])).symbol(), ": ", vm.toString(tokenStakingNodes[i].preELIP002QueuedSharesAmount(strategy)), " wei (", vm.toString(tokenStakingNodes[i].preELIP002QueuedSharesAmount(strategy) / 1e18), " ETH)"));
-                console.log(string.concat("Queued shares post ELIP002 for node ", vm.toString(i), " and asset ", ERC20(address(assets[j])).symbol(), ": ", vm.toString(tokenStakingNodes[i].queuedShares(strategy)), " wei (", vm.toString(tokenStakingNodes[i].queuedShares(strategy) / 1e18), " ETH)"));
-                console.log(string.concat("Total Queued shares including pre ELIP002 for node ", vm.toString(i), " and asset ", ERC20(address(assets[j])).symbol(), ": ", vm.toString(totalQueuedShares), " wei (", vm.toString(totalQueuedShares / 1e18), " ETH)"));
-                console.log(string.concat("Withdrawn shares for node ", vm.toString(i), " and asset ", ERC20(address(assets[j])).symbol(), ": ", vm.toString(withdrawnShares), " wei (", vm.toString(withdrawnShares / 1e18), " ETH)"));
+                (, uint256 withdrawnShares) = tokenStakingNodes[i].getQueuedSharesAndWithdrawn(strategy, assets[j]);
+                console.log(
+                    string.concat(
+                        "Queued shares for node ",
+                        vm.toString(i),
+                        " and asset ",
+                        ERC20(address(assets[j])).symbol(),
+                        ": ",
+                        vm.toString(tokenStakingNodes[i].queuedShares(strategy)),
+                        " wei (",
+                        vm.toString(tokenStakingNodes[i].queuedShares(strategy) / 1e18),
+                        " ETH)"
+                    )
+                );
+                console.log(
+                    string.concat(
+                        "Withdrawn shares for node ",
+                        vm.toString(i),
+                        " and asset ",
+                        ERC20(address(assets[j])).symbol(),
+                        ": ",
+                        vm.toString(withdrawnShares),
+                        " wei (",
+                        vm.toString(withdrawnShares / 1e18),
+                        " ETH)"
+                    )
+                );
             }
         }
 
         for (uint256 i = 0; i < assets.length; i++) {
-            console.log("Balance of asset ", ERC20(address(assets[i])).symbol(), " among all nodes is: ", vm.toString(assetBalances[i]));
+            IStrategy strategy = deployment.eigenStrategyManager.strategies(assets[i]);
+            console.log(
+                string.concat(
+                    "Balance of asset ",
+                    ERC20(address(assets[i])).symbol(),
+                    " among all nodes is: ",
+                    vm.toString(assetBalances[i]),
+                    " (strategy: ",
+                    vm.toString(address(strategy)),
+                    ")"
+                )
+            );
         }
     }
+
 }
