@@ -638,10 +638,11 @@ contract YnEigenVerifier is BaseYnEigenScript {
         );
 
         // EXPECTING 10 BPS
-        require(deployment.withdrawalQueueManager.withdrawalFee() == 0, "WithdrawalQueueManager: withdrawalFee INVALID");
-        console.log(
-            "\u2705 WithdrawalQueueManager: withdrawalFee - Value:", deployment.withdrawalQueueManager.withdrawalFee()
+        require(
+            deployment.withdrawalQueueManager.withdrawalFee() == 0,
+            "WithdrawalQueueManager: withdrawalFee INVALID"
         );
+        console.log("\u2705 WithdrawalQueueManager: withdrawalFee - Value:", deployment.withdrawalQueueManager.withdrawalFee());
 
         console.log("\u2705 All system parameters verified successfully");
     }
