@@ -47,14 +47,14 @@ contract CompleteQueuedWithdrawalsAsShares_ynLSDe is BaseScript {
         }
         console.log("Withdrawals:", withdrawals.length);
 
-        IDelegationManager.Withdrawal[] memory withdrawAsSharesOnlyWithdrawals = new IDelegationManager.Withdrawal[](1);
+        IDelegationManager.Withdrawal[] memory withdrawAsSharesOnlyWithdrawals = withdrawals;
 
-        withdrawAsSharesOnlyWithdrawals[0] = withdrawals[0];
+        console.log("Withdrawals length:", withdrawAsSharesOnlyWithdrawals.length);
 
         // Prepare the argument to pass for updateTokenStakingNodesBalances (set to true for this example)
         bool updateTokenStakingNodesBalances = true;
 
-        // Encode the function call data for completeQueuedWithdrawals
+        // Encode the function call data for completeQueuedWithdrawalsAsShares
         bytes memory completeQueuedWithdrawalsTxData = abi.encodeWithSelector(
             ITokenStakingNode.completeQueuedWithdrawalsAsShares.selector,
             withdrawAsSharesOnlyWithdrawals,
