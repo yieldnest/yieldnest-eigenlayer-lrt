@@ -34,7 +34,9 @@ contract CompleteQueuedWithdrawalsAsShares_ynLSDe is BaseScript {
  
         IDelegationManager delegationManager = IDelegationManager(0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A);
 
-        (IDelegationManager.Withdrawal[] memory withdrawals, uint256[][] memory shares) = delegationManager.getQueuedWithdrawals(stakingNodes[1]);
+        uint256 index = 1;
+
+        (IDelegationManager.Withdrawal[] memory withdrawals, uint256[][] memory shares) = delegationManager.getQueuedWithdrawals(stakingNodes[index]);
 
         for (uint256 i = 0; i < withdrawals.length; i++) {
             console.log("Withdrawal:", i, "withdrawal.withdrawer:", withdrawals[i].withdrawer);
@@ -57,12 +59,11 @@ contract CompleteQueuedWithdrawalsAsShares_ynLSDe is BaseScript {
         // Encode the function call data for completeQueuedWithdrawalsAsShares
         bytes memory completeQueuedWithdrawalsTxData = abi.encodeWithSelector(
             ITokenStakingNode.completeQueuedWithdrawalsAsShares.selector,
-            withdrawAsSharesOnlyWithdrawals,
-            updateTokenStakingNodesBalances
+            withdrawAsSharesOnlyWithdrawals
         );
 
         // Print details and tx data
-        console.log("StakingNode address:", stakingNodes[0]);
+        console.log("StakingNode address:", stakingNodes[index]);
         console.log(
             "completeQueuedWithdrawals() tx data:",
             vm.toString(abi.encodePacked(completeQueuedWithdrawalsTxData))
