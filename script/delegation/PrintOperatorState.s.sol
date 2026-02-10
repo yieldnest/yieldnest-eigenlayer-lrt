@@ -8,6 +8,7 @@ import {IEigenServiceManager} from "./IEigenServiceManager.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IStrategy} from "@eigenlayer/src/contracts/interfaces/IStrategy.sol";
 import {ITokenStakingNode} from "src/interfaces/ITokenStakingNode.sol";
+import {IDelegationManager} from "@eigenlayer/src/contracts/interfaces/IDelegationManager.sol";
 import {EIGEN_SERVICE_MANAGER} from "./Contracts.sol";
 
 contract PrintOperatorState is Script {
@@ -74,9 +75,34 @@ contract PrintOperatorState is Script {
 
             uint256 withdrawableShares = ITokenStakingNode(restaker).getWithdrawableShares(IStrategy(strategy));
             console.log("Withdrawable shares:", withdrawableShares);
+
+            _printQueuedWithdrawals(restaker);
             console.log("-------------------------------------------");
         } catch {
             // restaker is not a TokenStakingNode, skip
+        }
+    }
+
+    function _printQueuedWithdrawals(address staker) internal view {
+        IDelegationManager delegationManager =
+            IDelegationManager(EIGEN_SERVICE_MANAGER.eigenAddresses().delegationManager);
+
+        (IDelegationManager.Withdrawal[] memory withdrawals, uint256[][] memory shares) =
+            delegationManager.getQueuedWithdrawals(staker);
+
+        console.log("Queued withdrawals count:", withdrawals.length);
+        for (uint256 i = 0; i < withdrawals.length; i++) {
+            console.log("  Withdrawal", i);
+            console.log("    Staker:", withdrawals[i].staker);
+            console.log("    Delegated to:", withdrawals[i].delegatedTo);
+            console.log("    Withdrawer:", withdrawals[i].withdrawer);
+            console.log("    Nonce:", withdrawals[i].nonce);
+            console.log("    Start block:", withdrawals[i].startBlock);
+            for (uint256 j = 0; j < withdrawals[i].strategies.length; j++) {
+                console.log("    Strategy:", address(withdrawals[i].strategies[j]));
+                console.log("    Scaled shares:", withdrawals[i].scaledShares[j]);
+                console.log("    Shares:", shares[i][j]);
+            }
         }
     }
 }
