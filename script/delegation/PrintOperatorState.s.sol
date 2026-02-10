@@ -6,11 +6,9 @@ import {console} from "lib/forge-std/src/console.sol";
 import {IEigenOperator} from "./IEigenOperator.sol";
 import {IEigenServiceManager} from "./IEigenServiceManager.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IStrategy} from "@eigenlayer/src/contracts/interfaces/IStrategy.sol";
+import {ITokenStakingNode} from "src/interfaces/ITokenStakingNode.sol";
 import {EIGEN_SERVICE_MANAGER} from "./Contracts.sol";
-
-interface IStrategy {
-    function underlyingToken() external view returns (address);
-}
 
 contract PrintOperatorState is Script {
     function run() external {
@@ -18,7 +16,7 @@ contract PrintOperatorState is Script {
         run(operator);
     }
 
-    function run(address operator) public view {
+    function run(address operator) public {
         console.log("=== Operator State ===");
         console.log("Operator (borrower):", operator);
 
@@ -44,7 +42,7 @@ contract PrintOperatorState is Script {
         address strategy = EIGEN_SERVICE_MANAGER.operatorToStrategy(operator);
         console.log("Strategy:", strategy);
 
-        address underlying = IStrategy(strategy).underlyingToken();
+        address underlying = address(IStrategy(strategy).underlyingToken());
         console.log("Underlying token:", underlying);
         console.log("Token name:", IERC20Metadata(underlying).name());
         console.log("Token symbol:", IERC20Metadata(underlying).symbol());
@@ -60,5 +58,25 @@ contract PrintOperatorState is Script {
 
         uint256 slashable = EIGEN_SERVICE_MANAGER.slashableCollateral(operator, 0);
         console.log("Slashable collateral:", slashable);
+
+        // Check if restaker is a TokenStakingNode
+        try ITokenStakingNode(restaker).nodeId() returns (uint256 nodeId) {
+            console.log("-------------------------------------------");
+            console.log("=== TokenStakingNode State ===");
+            console.log("Node ID:", nodeId);
+            console.log("Delegated to:", ITokenStakingNode(restaker).delegatedTo());
+            console.log("Synchronized:", ITokenStakingNode(restaker).isSynchronized());
+
+            (uint256 queuedShares, uint256 withdrawnBalance) =
+                ITokenStakingNode(restaker).getQueuedSharesAndWithdrawn(IStrategy(strategy), IERC20Metadata(underlying));
+            console.log("Queued shares:", queuedShares);
+            console.log("Withdrawn balance:", withdrawnBalance);
+
+            uint256 withdrawableShares = ITokenStakingNode(restaker).getWithdrawableShares(IStrategy(strategy));
+            console.log("Withdrawable shares:", withdrawableShares);
+            console.log("-------------------------------------------");
+        } catch {
+            // restaker is not a TokenStakingNode, skip
+        }
     }
 }
