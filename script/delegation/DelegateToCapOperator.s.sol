@@ -29,7 +29,7 @@ contract DelegateToCapOperator is BaseScript {
 
         ContractAddresses contractAddresses = new ContractAddresses();
         ContractAddresses.ChainAddresses memory chainAddresses = contractAddresses.getChainAddresses(block.chainid);
-        IStakingNodesManager stakingNodesManager = IStakingNodesManager(chainAddresses.yn.TOKEN_STAKING_NODES_MANAGER_ADDRESS);
+        IStakingNodesManager stakingNodesManager = IStakingNodesManager(chainAddresses.ynEigen.TOKEN_STAKING_NODES_MANAGER_ADDRESS);
         IStakingNode[] memory allNodes = stakingNodesManager.getAllNodes();
         require(allNodes.length == stakingNodes.length, "Node count mismatch.");
 
