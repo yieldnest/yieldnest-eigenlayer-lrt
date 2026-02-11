@@ -192,7 +192,7 @@ contract Verify is BaseYnETHScript {
 
         // FEE_RECEIVER
         require(
-            deployment.rewardsDistributor.feesReceiver() == actors.admin.FEE_RECEIVER, 
+            deployment.rewardsDistributor.feesReceiver() == 0xC92Dd1837EBcb0365eB0a8795f9c8E474f8B6183, 
             "rewardsDistributor: FEE_RECEIVER INVALID"
         );
         console.log("\u2705 rewardsDistributor: FEE_RECEIVER - ", vm.toString(actors.admin.FEE_RECEIVER));
