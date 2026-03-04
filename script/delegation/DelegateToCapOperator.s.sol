@@ -42,9 +42,9 @@ contract DelegateToCapOperator is BaseScript {
 
         address[] memory operators = new address[](nodeCount);
         uint256 operatorIndex = 0;
-        operators[operatorIndex++] = address(0);
+        operators[operatorIndex++] = 0xC83B97249d74bBAB5A71264E0d48A1Cb9f273Df0;
         operators[operatorIndex++] = 0xAfFf8F87dB00C3C0AD3321aF7e0716A31733eF25;
-        operators[operatorIndex++] = address(0);
+        operators[operatorIndex++] = 0xEdE09649A1F8a06d9Fbe571090D971B9cC7AA27A;
         operators[operatorIndex++] = 0xD4637157937Afb544d7969C9F5D56a481A26f033;
         operators[operatorIndex++] = 0x4668d41D944B92f800965266D6382EF3F5C6B763;
 
