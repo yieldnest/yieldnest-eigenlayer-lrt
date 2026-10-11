@@ -47,6 +47,8 @@ contract RedemptionFundingForkTest is Test, IYnETHEvents {
         uint256 amount
     ) internal {
         uint256 assetsBefore = token.totalAssets();
+        token.stakingNodesManager().updateTotalETHStaked();
+        assertEq(token.totalAssets(), assetsBefore, "Pre-funding staking update preserves assets");
         uint256 supplyBefore = token.totalSupply();
         uint256 rateBefore = token.previewRedeem(1 ether);
         uint256 poolBefore = token.totalDepositedInPool();
@@ -61,6 +63,8 @@ contract RedemptionFundingForkTest is Test, IYnETHEvents {
         token.withdrawETHForRedemption(amount);
 
         assertEq(token.totalAssets(), assetsBefore, "Total assets must stay exactly stable");
+        token.stakingNodesManager().updateTotalETHStaked();
+        assertEq(token.totalAssets(), assetsBefore, "Post-funding staking update preserves assets");
         assertEq(token.totalSupply(), supplyBefore, "No shares minted or burned");
         assertEq(token.previewRedeem(1 ether), rateBefore, "Share price stays stable");
         assertEq(token.totalDepositedInPool(), poolBefore - amount, "Pool accounting decreases");

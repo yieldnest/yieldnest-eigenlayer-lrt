@@ -33,6 +33,8 @@ contract ynETHRedemptionFundingIntegrationTest is IntegrationBaseTest {
         uint256 amount
     ) internal {
         uint256 assetsBefore = yneth.totalAssets();
+        stakingNodesManager.updateTotalETHStaked();
+        assertEq(yneth.totalAssets(), assetsBefore, "Pre-funding staking update preserves assets");
         uint256 supplyBefore = yneth.totalSupply();
         uint256 rateBefore = yneth.previewRedeem(1 ether);
         uint256 poolBefore = yneth.totalDepositedInPool();
@@ -42,6 +44,8 @@ contract ynETHRedemptionFundingIntegrationTest is IntegrationBaseTest {
         vm.prank(withdrawer);
         yneth.withdrawETHForRedemption(amount);
         assertEq(yneth.totalAssets(), assetsBefore, "Funding preserves assets exactly");
+        stakingNodesManager.updateTotalETHStaked();
+        assertEq(yneth.totalAssets(), assetsBefore, "Post-funding staking update preserves assets");
         assertEq(yneth.totalSupply(), supplyBefore);
         assertEq(yneth.previewRedeem(1 ether), rateBefore);
         assertEq(yneth.totalDepositedInPool(), poolBefore - amount);
