@@ -8,6 +8,10 @@ import {
 } from "lib/openzeppelin-contracts/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ynETH, IYnETHEvents} from "src/ynETH.sol";
 import {IStakingNodesManager} from "src/interfaces/IStakingNodesManager.sol";
+import {WithdrawalQueueManager} from "src/WithdrawalQueueManager.sol";
+import {IWithdrawalQueueManager} from "src/interfaces/IWithdrawalQueueManager.sol";
+import {ynETHRedemptionAssetsVault} from "src/ynETHRedemptionAssetsVault.sol";
+import {ActorAddresses} from "script/Actors.sol";
 
 /// @dev Run against an Ethereum mainnet fork. Only ynETH is upgraded; manager, vault and balances remain live state.
 contract RedemptionFundingForkTest is Test, IYnETHEvents {
@@ -79,6 +83,100 @@ contract RedemptionFundingForkTest is Test, IYnETHEvents {
         assertGt(pool, 0, "Mainnet pool must be funded");
         _withdrawAndAssert(pool);
         assertEq(token.totalDepositedInPool(), 0);
+    }
+
+    /// @dev Uses existing requests, owners and finalizer permissions at the supplied mainnet fork block.
+    /// Run at block 26166186 to reproduce the active queue (finalized index 325, next request 330).
+    function testFundVaultAndResolveActiveMainnetRequests() public {
+        WithdrawalQueueManager queue = WithdrawalQueueManager(ynETHRedemptionAssetsVault(payable(vault)).redeemer());
+        assertEq(address(queue.redeemableAsset()), address(token));
+        assertEq(address(queue.redemptionAssetsVault()), vault);
+        uint256 oldIndex = queue.lastFinalizedIndex();
+        uint256 nextIndex = queue._tokenIdCounter();
+        assertGt(nextIndex, oldIndex, "Fork must contain requests awaiting finalization");
+
+        uint256[] memory activeIds = new uint256[](queue.totalSupply());
+        assertGt(activeIds.length, 0, "Fork must contain active requests");
+        uint256 requestedAssets;
+        for (uint256 i; i < activeIds.length; ++i) {
+            activeIds[i] = queue.tokenByIndex(i);
+            IWithdrawalQueueManager.WithdrawalRequest memory request = queue.withdrawalRequest(activeIds[i]);
+            assertFalse(request.processed);
+            requestedAssets += queue.calculateRedemptionAmount(request.amount, request.redemptionRateAtRequestTime);
+        }
+        emit log_named_uint(
+            "Pre-existing pending counter remainder (wei)", queue.pendingRequestedRedemptionAmount() - requestedAssets
+        );
+        for (uint256 id = oldIndex; id < nextIndex; ++id) {
+            assertFalse(queue.withdrawalRequestIsFinalized(id));
+        }
+
+        _withdrawAndAssert(token.totalDepositedInPool());
+        uint256 assetsBefore = token.totalAssets();
+        uint256 supplyBefore = token.totalSupply();
+        uint256 vaultBefore = vault.balance;
+        uint256 pendingBefore = queue.pendingRequestedRedemptionAmount();
+        address finalizer = new ActorAddresses().getActors(block.chainid).ops.REQUEST_FINALIZER;
+        assertTrue(queue.hasRole(queue.REQUEST_FINALIZER_ROLE(), finalizer), "Use existing finalizer authority");
+        vm.prank(finalizer);
+        queue.finalizeRequestsUpToIndex(nextIndex);
+        assertEq(queue.lastFinalizedIndex(), nextIndex, "Finalization index advances through all requests");
+        assertEq(token.totalAssets(), assetsBefore, "Finalizing does not spend ETH");
+        assertEq(queue.pendingRequestedRedemptionAmount(), pendingBefore, "Finalizing does not claim requests");
+
+        uint256 grossClaimed;
+        uint256 sharesBurned;
+        for (uint256 i; i < activeIds.length; ++i) {
+            assertTrue(queue.withdrawalRequestIsFinalized(activeIds[i]));
+            (uint256 gross, uint256 shares) = _claimActiveMainnetRequest(queue, activeIds[i]);
+            grossClaimed += gross;
+            sharesBurned += shares;
+        }
+        assertEq(queue.totalSupply(), 0, "All active request NFTs have been burned");
+        assertEq(queue.pendingRequestedRedemptionAmount(), pendingBefore - grossClaimed);
+        assertEq(
+            queue.pendingRequestedRedemptionAmount(),
+            pendingBefore - requestedAssets,
+            "Only the pre-existing pending counter remainder remains"
+        );
+        // The live counter already contains a remainder not represented by any active request.
+        // Every active request is resolved above; reconcile actual payouts rather than assuming a zero counter.
+        emit log_named_uint(
+            "Pending counter remainder after all claims (wei)", queue.pendingRequestedRedemptionAmount()
+        );
+        assertEq(token.totalSupply(), supplyBefore - sharesBurned);
+        assertEq(vault.balance, vaultBefore - grossClaimed);
+        assertEq(token.totalAssets(), assetsBefore - grossClaimed, "Only claims reduce total assets");
+        token.stakingNodesManager().updateTotalETHStaked();
+        assertEq(token.totalAssets(), assetsBefore - grossClaimed, "Staking refresh preserves post-claim assets");
+    }
+
+    function _claimActiveMainnetRequest(
+        WithdrawalQueueManager queue,
+        uint256 id
+    ) internal returns (uint256 gross, uint256 shares) {
+        IWithdrawalQueueManager.WithdrawalRequest memory request = queue.withdrawalRequest(id);
+        (,, uint96 finalizedRate) = queue.finalizations(queue.findFinalizationForTokenId(id));
+        uint256 rate =
+            request.redemptionRateAtRequestTime < finalizedRate ? request.redemptionRateAtRequestTime : finalizedRate;
+        gross = queue.calculateRedemptionAmount(request.amount, rate);
+        shares = request.amount;
+        uint256 fee = queue.calculateFee(gross, request.feeAtRequestTime);
+        address owner = queue.ownerOf(id);
+        address feeReceiver = queue.feeReceiver();
+        uint256 ownerBefore = owner.balance;
+        uint256 feeBefore = feeReceiver.balance;
+        uint256 vaultBefore = vault.balance;
+        vm.prank(owner);
+        queue.claimWithdrawal(id, owner);
+        assertTrue(queue.withdrawalRequest(id).processed, "Existing request is resolved");
+        assertEq(vault.balance, vaultBefore - gross);
+        if (owner == feeReceiver) {
+            assertEq(owner.balance, ownerBefore + gross);
+        } else {
+            assertEq(owner.balance, ownerBefore + gross - fee, "Owner receives net ETH");
+            assertEq(feeReceiver.balance, feeBefore + fee, "Fee receiver receives fee");
+        }
     }
 
     function testFuzzWithdrawPreservesTotalAssets(
