@@ -16,7 +16,6 @@ import {WithdrawalQueueManager} from "src/WithdrawalQueueManager.sol";
 import {IWrapper} from "src/interfaces/IWrapper.sol";
 import {WithdrawalsProcessor} from "src/ynEIGEN/WithdrawalsProcessor.sol";
 
-
 import {ActorAddresses} from "script/Actors.sol";
 import {ContractAddresses} from "script/ContractAddresses.sol";
 import {BaseScript} from "script/BaseScript.s.sol";
@@ -25,8 +24,8 @@ import {ynEigenViewer} from "src/ynEIGEN/ynEigenViewer.sol";
 import {console} from "lib/forge-std/src/console.sol";
 
 contract BaseYnEigenScript is BaseScript {
-    using stdJson for string;
 
+    using stdJson for string;
 
     struct DeploymentProxies {
         ProxyAddresses ynEigen;
@@ -91,21 +90,31 @@ contract BaseYnEigenScript is BaseScript {
         _deployer = msg.sender; // set by --sender when running the script
     }
 
-    function _loadJson(string memory _path) internal {
+    function _loadJson(
+        string memory _path
+    ) internal {
         string memory path = string(abi.encodePacked(vm.projectRoot(), "/", _path));
         string memory json = vm.readFile(path);
         bytes memory data = vm.parseJson(json);
 
         Input memory _inputs = abi.decode(data, (Input));
 
-        this.loadInputs(_inputs);
+        loadInputs(_inputs);
     }
 
     /**
      * @dev this function is required to load the JSON input struct into storage untill that feature is added to foundry
      */
-    function loadInputs(Input calldata _inputs) external {
-        inputs = _inputs;
+    function loadInputs(
+        Input memory _inputs
+    ) public {
+        inputs.chainId = _inputs.chainId;
+        inputs.name = _inputs.name;
+        inputs.symbol = _inputs.symbol;
+        delete inputs.assets;
+        for (uint256 i = 0; i < _inputs.assets.length; i++) {
+            inputs.assets.push(_inputs.assets[i]);
+        }
     }
 
     function _validateNetwork() internal virtual {
@@ -113,7 +122,7 @@ contract BaseYnEigenScript is BaseScript {
         if (!isSupportedChainId(inputs.chainId)) revert UnsupportedChainId(inputs.chainId);
     }
 
-    function tokenName() internal virtual view returns (string memory) {
+    function tokenName() internal view virtual returns (string memory) {
         return "ynLSDe";
     }
 
@@ -124,7 +133,9 @@ contract BaseYnEigenScript is BaseScript {
         // return string.concat(root, "/deployments/", tokenName(), "-", vm.toString(block.chainid), "-ynFoo", ".json");
     }
 
-    function saveDeployment(Deployment memory deployment) public virtual {
+    function saveDeployment(
+        Deployment memory deployment
+    ) public virtual {
         string memory json = "deployment";
 
         // contract addresses
@@ -140,7 +151,6 @@ contract BaseYnEigenScript is BaseScript {
         serializeProxyElements(json, "redemptionAssetsVault", address(deployment.redemptionAssetsVault));
         serializeProxyElements(json, "withdrawalQueueManager", address(deployment.withdrawalQueueManager));
         serializeProxyElements(json, "wrapper", address(deployment.wrapper));
-
 
         // actors
         vm.serializeAddress(json, "PROXY_ADMIN_OWNER", address(actors.admin.PROXY_ADMIN_OWNER));
@@ -169,44 +179,47 @@ contract BaseYnEigenScript is BaseScript {
         DeploymentProxies memory proxies;
 
         deployment.ynEigen = ynEigen(payable(jsonContent.readAddress(string.concat(".proxy-", tokenName()))));
-        proxies.ynEigen =  loadProxyAddresses(jsonContent, tokenName());   
+        proxies.ynEigen = loadProxyAddresses(jsonContent, tokenName());
 
         deployment.tokenStakingNodesManager =
             TokenStakingNodesManager(payable(jsonContent.readAddress(".proxy-tokenStakingNodesManager")));
-        proxies.tokenStakingNodesManager =  loadProxyAddresses(jsonContent, "tokenStakingNodesManager");   
+        proxies.tokenStakingNodesManager = loadProxyAddresses(jsonContent, "tokenStakingNodesManager");
 
         deployment.assetRegistry = AssetRegistry(payable(jsonContent.readAddress(".proxy-assetRegistry")));
-        proxies.assetRegistry =  loadProxyAddresses(jsonContent, "assetRegistry");  
+        proxies.assetRegistry = loadProxyAddresses(jsonContent, "assetRegistry");
 
         deployment.eigenStrategyManager =
             EigenStrategyManager(payable(jsonContent.readAddress(".proxy-eigenStrategyManager")));
-        proxies.eigenStrategyManager =  loadProxyAddresses(jsonContent, "eigenStrategyManager"); 
+        proxies.eigenStrategyManager = loadProxyAddresses(jsonContent, "eigenStrategyManager");
 
         deployment.tokenStakingNodeImplementation =
             TokenStakingNode(payable(jsonContent.readAddress(".tokenStakingNodeImplementation")));
 
         deployment.ynEigenDepositAdapterInstance =
             ynEigenDepositAdapter(payable(jsonContent.readAddress(".proxy-ynEigenDepositAdapter")));
-        proxies.ynEigenDepositAdapter =  loadProxyAddresses(jsonContent, "ynEigenDepositAdapter"); 
+        proxies.ynEigenDepositAdapter = loadProxyAddresses(jsonContent, "ynEigenDepositAdapter");
 
         deployment.rateProvider = IRateProvider(payable(jsonContent.readAddress(".proxy-rateProvider")));
-        proxies.rateProvider =  loadProxyAddresses(jsonContent, "rateProvider"); 
+        proxies.rateProvider = loadProxyAddresses(jsonContent, "rateProvider");
 
         deployment.viewer = ynEigenViewer(payable(jsonContent.readAddress(".proxy-ynEigenViewer")));
-        proxies.ynEigenViewer =  loadProxyAddresses(jsonContent, "ynEigenViewer"); 
+        proxies.ynEigenViewer = loadProxyAddresses(jsonContent, "ynEigenViewer");
 
-        deployment.redemptionAssetsVault = RedemptionAssetsVault(payable(jsonContent.readAddress(".proxy-redemptionAssetsVault")));
+        deployment.redemptionAssetsVault =
+            RedemptionAssetsVault(payable(jsonContent.readAddress(".proxy-redemptionAssetsVault")));
         proxies.redemptionAssetsVault = loadProxyAddresses(jsonContent, "redemptionAssetsVault");
 
-        deployment.withdrawalQueueManager = WithdrawalQueueManager(payable(jsonContent.readAddress(".proxy-withdrawalQueueManager")));
+        deployment.withdrawalQueueManager =
+            WithdrawalQueueManager(payable(jsonContent.readAddress(".proxy-withdrawalQueueManager")));
         proxies.withdrawalQueueManager = loadProxyAddresses(jsonContent, "withdrawalQueueManager");
 
         deployment.wrapper = IWrapper(payable(jsonContent.readAddress(".proxy-wrapper")));
         proxies.wrapper = loadProxyAddresses(jsonContent, "wrapper");
 
-        deployment.withdrawalsProcessor = WithdrawalsProcessor(payable(jsonContent.readAddress(".proxy-withdrawalsProcessor")));
+        deployment.withdrawalsProcessor =
+            WithdrawalsProcessor(payable(jsonContent.readAddress(".proxy-withdrawalsProcessor")));
         proxies.withdrawalsProcessor = loadProxyAddresses(jsonContent, "withdrawalsProcessor");
-        
+
         deployment.upgradeTimelock = TimelockController(payable(jsonContent.readAddress(".upgradeTimelock")));
 
         deployment.proxies = proxies;
@@ -214,10 +227,13 @@ contract BaseYnEigenScript is BaseScript {
         return deployment;
     }
 
-    function getProxyAddress(string memory contractName) public view returns (address) {
+    function getProxyAddress(
+        string memory contractName
+    ) public view returns (address) {
         string memory deploymentFile = getDeploymentFile();
         string memory jsonContent = vm.readFile(deploymentFile);
         string memory proxyKey = string.concat(".proxy-", contractName);
         return jsonContent.readAddress(proxyKey);
     }
+
 }
