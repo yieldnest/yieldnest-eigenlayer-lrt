@@ -410,6 +410,13 @@ contract WithdrawalQueueManager is IWithdrawalQueueManager, ERC721EnumerableUpgr
      * @return surplus The amount of surplus redemption assets in the unit of account.
      */
     function surplusRedemptionAssets() public view returns (uint256) {
+        // TODO: Fix pending-liability accounting in _claimWithdrawal: remove the full amount
+        // booked at request time (calculateRedemptionAmount(request.amount, request.redemptionRateAtRequestTime)),
+        // while still paying min(request-time rate, finalization rate). Subtracting only the payout
+        // leaves phantom pending after a rate drop and suppresses surplus, including ETH supplied
+        // via ynETH.withdrawETHForRedemption. New requests/claims do not clear that accounting remainder.
+        // Existing deployments also need a reconciliation of accumulated phantom pending; fixing
+        // future claims alone will not release the historical amount through withdrawSurplusRedemptionAssets.
         uint256 availableAmount = redemptionAssetsVault.availableRedemptionAssets();
         if (availableAmount > pendingRequestedRedemptionAmount) {
             return availableAmount - pendingRequestedRedemptionAmount;
@@ -612,4 +619,3 @@ contract WithdrawalQueueManager is IWithdrawalQueueManager, ERC721EnumerableUpgr
         _;
     }
 }
-
