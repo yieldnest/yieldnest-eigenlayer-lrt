@@ -20,7 +20,7 @@ contract RedemptionFundingManagerStub {
     }
 
     function totalDeposited() external view returns (uint256) {
-        return redemptionAssetsVault.balance;
+        return redemptionAssetsVault == address(0) ? 0 : redemptionAssetsVault.balance;
     }
 
 }
@@ -73,6 +73,12 @@ contract ynETHRedemptionFundingUnitTest is Test, IYnETHEvents {
                     )
                 ))
         );
+        // CREATE addresses and named accounts can already hold ETH on a mainnet fork.
+        // These isolated fixtures must start from the same balances with or without --rpc-url.
+        vm.deal(address(manager), 0);
+        vm.deal(address(vault), 0);
+        vm.deal(address(token), 0);
+        vm.deal(withdrawer, 0);
         vm.prank(admin);
         token.grantRole(ROLE, withdrawer);
         vm.deal(user, 100 ether);
@@ -197,6 +203,7 @@ contract ynETHRedemptionFundingUnitTest is Test, IYnETHEvents {
 
     function testUsesConfiguredVault() public {
         RedemptionFundingReceiverStub replacement = new RedemptionFundingReceiverStub();
+        vm.deal(address(replacement), 0);
         manager.setVault(address(replacement));
         _withdraw(10 ether);
         assertEq(address(replacement).balance, 10 ether);
