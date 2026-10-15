@@ -14,6 +14,7 @@ interface IYnETHEvents {
     event Deposit(address indexed sender, address indexed receiver, uint256 assets, uint256 shares, uint256 totalDepositedInPool);
     event RewardsReceived(uint256 value, uint256 totalDepositedInPool);
     event ETHWithdrawn(uint256 ethAmount, uint256 totalDepositedInPool);
+    event ETHWithdrawnForRedemption(address indexed redemptionAssetsVault, uint256 ethAmount, uint256 totalDepositedInPool);
     event WithdrawnETHProcessed(uint256 ethAmount, uint256 totalDepositedInPool);
 }
 
@@ -46,6 +47,7 @@ contract ynETH is IynETH, ynBase, IYnETHEvents {
     //--------------------------------------------------------------------------------------
 
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+    bytes32 public constant ETH_REDEMPTION_WITHDRAWER_ROLE = keccak256("ETH_REDEMPTION_WITHDRAWER_ROLE");
 
     //--------------------------------------------------------------------------------------
     //----------------------------------  VARIABLES  ---------------------------------------
@@ -291,6 +293,24 @@ contract ynETH is IynETH, ynBase, IYnETHEvents {
     }
 
     /**
+     * @notice Moves liquid ETH from the deposit pool directly to the redemption assets vault.
+     * @dev Requires ETH_REDEMPTION_WITHDRAWER_ROLE. The vault balance is included in totalAssets,
+     * so reducing pool accounting by the transferred amount preserves total assets and the share price.
+     * @param ethAmount The amount of ETH to transfer in wei.
+     */
+    function withdrawETHForRedemption(uint256 ethAmount) external override onlyRole(ETH_REDEMPTION_WITHDRAWER_ROLE) {
+        address vault = address(stakingNodesManager.redemptionAssetsVault());
+        if (vault == address(0)) revert ZeroAddress();
+        if (ethAmount > totalDepositedInPool) revert InsufficientBalance();
+
+        totalDepositedInPool -= ethAmount;
+        (bool success, ) = payable(vault).call{value: ethAmount}("");
+        if (!success) revert TransferFailed();
+
+        emit ETHWithdrawnForRedemption(vault, ethAmount, totalDepositedInPool);
+    }
+
+    /**
      * @dev Processes ETH that has been withdrawn from the staking nodes and adds it to the pool.
      * This function can only be called by the Staking Nodes Manager.
      * It increases the total deposited in the pool by the amount of ETH sent with the call.
@@ -357,4 +377,3 @@ contract ynETH is IynETH, ynBase, IYnETHEvents {
         _;
     }
 }
-
