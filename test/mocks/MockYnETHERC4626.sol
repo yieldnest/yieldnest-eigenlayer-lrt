@@ -168,6 +168,10 @@ contract MockYnETHERC4626 is IynETH, AccessControlUpgradeable, ERC4626Upgradeabl
         totalDepositedInPool += msg.value;
     }
 
+    function withdrawETHForRedemption(uint256) external override {
+        revert("Not implemented");
+    }
+
     function withdrawETH(uint256 ethAmount) public onlyStakingNodesManager override {
         require(totalDepositedInPool >= ethAmount, "Insufficient balance");
 

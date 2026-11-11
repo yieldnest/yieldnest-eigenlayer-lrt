@@ -8,6 +8,11 @@ import {IStakingNodesManager} from "src/interfaces/IStakingNodesManager.sol";
 
 interface IynETH is IERC20, IRedeemableAsset {
     function withdrawETH(uint256 ethAmount) external;
+
+    /// @notice Moves ETH from the deposit pool to the configured redemption assets vault.
+    /// @dev Requires ETH_REDEMPTION_WITHDRAWER_ROLE.
+    /// @param ethAmount Amount of ETH to transfer in wei.
+    function withdrawETHForRedemption(uint256 ethAmount) external;
     function processWithdrawnETH() external payable;
     function receiveRewards() external payable;
     function pauseDeposits() external;
